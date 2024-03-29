@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.10.34607.79
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Sample", "Sample\Sample.csproj", "{1F22E8B7-56ED-4F13-A077-E6C18C6DF9B6}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Databricks.Sql.Net", "Databricks.Sql.Net\Databricks.Sql.Net.csproj", "{89B5D58D-AB04-46B3-9745-3D43A59FBE82}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{1F22E8B7-56ED-4F13-A077-E6C18C6DF9B6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1F22E8B7-56ED-4F13-A077-E6C18C6DF9B6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1F22E8B7-56ED-4F13-A077-E6C18C6DF9B6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1F22E8B7-56ED-4F13-A077-E6C18C6DF9B6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{89B5D58D-AB04-46B3-9745-3D43A59FBE82}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{89B5D58D-AB04-46B3-9745-3D43A59FBE82}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{89B5D58D-AB04-46B3-9745-3D43A59FBE82}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{89B5D58D-AB04-46B3-9745-3D43A59FBE82}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {42C21B80-C65D-4375-A15C-638255A0C7C6}
+	EndGlobalSection
+EndGlobal
