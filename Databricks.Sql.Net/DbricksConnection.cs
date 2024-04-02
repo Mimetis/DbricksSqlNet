@@ -54,9 +54,14 @@ namespace Databricks.Sql.Net
         public Uri GetSqlStatementsPath() => GetPath(SqlStatementsPath);
 
         //public Uri GetSqlStatementsResultPath(string statementId) => GetPathWithQueryParmaters(SqlStatementsResultPath, statementId);
+
+        public DbricksConnection(IOptions<DbricksOptions> dbriksOptions, HttpClient client = null, Policy policy = null)
+            : this(dbriksOptions.Value, client, policy)
+        {
+        }
+
         public DbricksConnection(DbricksOptions dbriksOptions, HttpClient client = null, Policy policy = null)
         {
-
             this.Policy = this.EnsurePolicy(policy);
             this.Options = dbriksOptions;
             this.RootUri = new Uri(this.Options.Host);
@@ -78,9 +83,7 @@ namespace Databricks.Sql.Net
             {
                 this.HttpClient = client;
             }
-
         }
-
 
         private Policy EnsurePolicy(Policy policy)
         {
@@ -88,25 +91,9 @@ namespace Databricks.Sql.Net
                 return policy;
 
             // Defining my retry policy
-            policy = Policy.WaitAndRetry(2,
-            (retryNumber) =>
-            {
-                return TimeSpan.FromMilliseconds(500 * retryNumber);
-            },
-            (ex, arg) =>
-            {
-                return false;
-
-            }, (ex, cpt, ts, arg) =>
-            {
-                Debug.WriteLine(ex);
-                return Task.CompletedTask;
-            });
-
+            policy = Policy.WaitAndRetry(1, TimeSpan.FromMilliseconds(500));
 
             return policy;
-
         }
-
     }
 }

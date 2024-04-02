@@ -13,6 +13,7 @@ using Microsoft.Extensions.Options;
 using System.Text;
 using DataBrickConnector.Models;
 using System.Text.Json;
+using System.Data;
 
 namespace Sample
 {
@@ -46,9 +47,22 @@ namespace Sample
             // print the options
             Console.WriteLine("Options Host: " + options.Host);
 
-            //await TestDatabricksSqlNetAffectedOrdersAsync(options);
+            await GetCustomersAsync(options);
 
-            await TestDatabricksSqlNetAlertGroupsAsync(options);
+        }
+
+        private static async Task GetCustomersAsync(DbricksOptions options)
+        {
+            var connection = new DbricksConnection(options);
+            var command = new DbricksCommand(connection, "select * from samples.tpch.lineitem");
+            var datatable = await command.LoadDataTableAsync();
+
+            foreach (DataRow row in datatable.Rows)
+            {
+                foreach (DataColumn column in datatable.Columns)
+                    Console.Write($"{column.ColumnName}:{row[column.ColumnName]} - ");
+                Console.WriteLine();
+            }
         }
 
         public static async Task TestDatabricksSqlNetAffectedOrdersAsync(DbricksOptions options)
@@ -81,11 +95,9 @@ namespace Sample
             });
 
             // first to start server
-            var result = await command.ExecuteAsync<List<AffectedOrders>>();
-
 
             var stopWatch = Stopwatch.StartNew();
-            result = await command.ExecuteAsync<List<AffectedOrders>>();
+            var result = await command.LoadAsync<List<AffectedOrders>>();
             stopWatch.Stop();
             Console.WriteLine($"[Ellapsed Time :{stopWatch.Elapsed.Minutes}:{stopWatch.Elapsed.Seconds}.{stopWatch.Elapsed.Milliseconds}]");
             Console.WriteLine($"Affected orders count : {result.Count}");
@@ -114,7 +126,7 @@ namespace Sample
 
 
             stopWatch = Stopwatch.StartNew();
-            result = await command.ExecuteAsync<List<AffectedOrders>>();
+            result = await command.LoadAsync<List<AffectedOrders>>();
             stopWatch.Stop();
             Console.WriteLine($"[Ellapsed Time :{stopWatch.Elapsed.Minutes}:{stopWatch.Elapsed.Seconds}.{stopWatch.Elapsed.Milliseconds}]");
             Console.WriteLine($"Affected orders count : {result.Count}");
@@ -143,43 +155,10 @@ namespace Sample
 
 
             stopWatch = Stopwatch.StartNew();
-            result = await command.ExecuteAsync<List<AffectedOrders>>();
+            result = await command.LoadAsync<List<AffectedOrders>>();
             stopWatch.Stop();
             Console.WriteLine($"[Ellapsed Time :{stopWatch.Elapsed.Minutes}:{stopWatch.Elapsed.Seconds}.{stopWatch.Elapsed.Milliseconds}]");
             Console.WriteLine($"Affected orders count : {result.Count}");
-        }
-
-        public static async Task TestDatabricksSqlNetAlertGroupsAsync(DbricksOptions options)
-        {
-            // create a DbricksConnection object with the IOPtions parameter
-            var connection = new DbricksConnection(options);
-
-            // create a DbricksCommand object with the connection parameter
-
-            var command = new DbricksCommand(connection, AlertGroupRepository.GetAlertGroupsStringWithParameters());
-
-            command.Parameters.Add(new DbricksCommandParameter { ParameterName = "from", Type = DbricksType.DATE });
-            command.Parameters.Add(new DbricksCommandParameter { ParameterName = "to", Type = DbricksType.DATE });
-
-            var globalStopWatch = Stopwatch.StartNew();
-
-            for (int i = 1; i < 20; i++)
-            {
-                // format a date with i as day. if i < 10, should add a 0 before i
-                var start = new DateOnly(2024, 4, i);
-                var end = new DateOnly(2024, 4, i);
-
-                command.Parameters[0].Value = start;
-                command.Parameters[1].Value = end;
-                var stopWatch = Stopwatch.StartNew();
-                var result = await command.ExecuteAsync<List<AlertGroup>>();
-                stopWatch.Stop();
-                Console.WriteLine($"[Ellapsed Time :{stopWatch.Elapsed.Minutes}:{stopWatch.Elapsed.Seconds}.{stopWatch.Elapsed.Milliseconds}]");
-                Console.WriteLine($"Alert groups count : {result.Count}");
-            }
-            globalStopWatch.Stop();
-            Console.WriteLine($"[Overall elapsed Time :{globalStopWatch.Elapsed.Minutes}:{globalStopWatch.Elapsed.Seconds}.{globalStopWatch.Elapsed.Milliseconds}]");
-
         }
     }
 }

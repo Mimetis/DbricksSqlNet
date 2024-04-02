@@ -17,10 +17,9 @@ namespace Databricks.Sql.Net.Enumeration
         DOUBLE,
         INTEGER,
         BIGINT,
+        BINARY,
         SMALLINT,
         TINYINT,
         BOOLEAN,
-        INTERVALMONTH,
-        INTERVALDAY
     }
 }

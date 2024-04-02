@@ -37,8 +37,19 @@ namespace Databricks.Sql.Net
         {
             ArgumentNullException.ThrowIfNull(configuration);
 
-            services.AddOptions<DbricksOptions>().Configure<IConfiguration>((options, configuration) =>
-                configuration.GetSection(configSectionName).Bind(options));
+            try
+            {
+
+                services.AddOptions<DbricksOptions>().Configure<IConfiguration>((options, configuration) =>
+                    configuration.GetSection(configSectionName).Bind(options));
+
+                services.AddTransient<DbricksConnection>();
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine(ex);
+                throw;
+            }
 
             return services;
         }

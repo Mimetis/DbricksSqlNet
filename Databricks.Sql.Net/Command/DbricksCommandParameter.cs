@@ -66,30 +66,5 @@ namespace Databricks.Sql.Net.Command
         /// Gets or Sets the value of the parameter.
         /// </summary>
         public object Value { get; set; }
-
-
-        /// <summary>
-        /// TODO: Implement this method.
-        /// </summary>
-        /// <returns></returns>
-        /// <exception cref="NotImplementedException"></exception>
-        public object GetDbricksType() => Value.GetType().FullName switch
-        {
-            "System.Int16" => TSparkParameterType.SMALLINT,
-            "System.Int32" => TSparkParameterType.INTEGER,
-            "System.Int64" => TSparkParameterType.BIGINT,
-            "System.Byte" => TSparkParameterType.TINYINT,
-            "System.Single" => TSparkParameterType.FLOAT,
-            "System.Double" => TSparkParameterType.DOUBLE,
-            "System.Boolean" => TSparkParameterType.BOOLEAN,
-            "System.DateOnly" => TSparkParameterType.DATE,
-            "System.DateTime" => TSparkParameterType.TIMESTAMP,
-            "System.DateTimeOffset" => TSparkParameterType.TIMESTAMP,
-            "System.Decimal" => TSparkParameterType.DECIMAL,
-            "System.TimeSpan" => TSparkParameterType.INTERVALDAY,
-            "System.Guid" => TSparkParameterType.STRING,
-            "System.String" => TSparkParameterType.STRING,
-            _ => throw new NotImplementedException(),
-        };
     }
 }
