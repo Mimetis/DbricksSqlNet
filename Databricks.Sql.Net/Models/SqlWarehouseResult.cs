@@ -1,8 +1,8 @@
 ﻿using System.Text.Json.Serialization;
 
-namespace DataBrickConnector.Models
+namespace Databricks.Sql.Net.Models
 {
-    public record DbricksResult
+    public record SqlWarehouseResult
     {
         [JsonPropertyName("row_count")]
         public int RowCount { get; init; }

@@ -1,5 +1,4 @@
-﻿using DataBrickConnector.Models;
-using Databricks.Sql.Net.Enumeration;
+﻿using Databricks.Sql.Net.Models;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -13,20 +12,21 @@ using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 
-namespace Databricks.Sql.Net.Command
+
+namespace Databricks.Sql.Net.Client
 {
-    public class DbricksCommand
+    public class SqlWarehouseCommand
     {
 
         /// <summary>
         /// Gets or Sets the command parameters.
         /// </summary>
-        public List<DbricksCommandParameter> Parameters { get; set; } = [];
+        public List<SqlWarehouseParameter> Parameters { get; set; } = [];
 
         /// <summary>
         /// Gets or sets the databricks connection.
         /// </summary>
-        public DbricksConnection Connection { get; set; }
+        public SqlWarehouseConnection Connection { get; set; }
 
         /// <summary>
         /// Gets or Sets the command text to be executed.
@@ -39,12 +39,12 @@ namespace Databricks.Sql.Net.Command
         /// </summary>
         public int? WaitTimeout { get; set; }
 
-        public DbricksCommand()
+        public SqlWarehouseCommand()
         {
 
         }
 
-        public DbricksCommand(DbricksConnection connetion, string command, int? waitTimeout = null)
+        public SqlWarehouseCommand(SqlWarehouseConnection connetion, string command, int? waitTimeout = null)
         {
             this.Command = command;
             this.Connection = connetion;
@@ -54,7 +54,7 @@ namespace Databricks.Sql.Net.Command
         private byte[] BuildContent(int? limit)
         {
 
-            var obj = new
+            var databricksQueryContent = new
             {
                 warehouse_id = this.Connection.Options.WarehouseId,
                 catalog = this.Connection.Options.Catalog,
@@ -71,14 +71,12 @@ namespace Databricks.Sql.Net.Command
                     value = p.Value
 
                 }).ToArray(),
-
             };
 
-            return JsonSerializer.SerializeToUtf8Bytes(obj);
-
+            return JsonSerializer.SerializeToUtf8Bytes(databricksQueryContent);
         }
 
-        public async Task<DbricksResponse> ExecuteAsync<T>(int? limit = default, IProgress<T> progress = default, CancellationToken cancellationToken = default)
+        public async Task<SqlWarehouseResponse> ExecuteAsync<T>(int? limit = default, IProgress<T> progress = default, CancellationToken cancellationToken = default)
         {
             if (this.Connection.HttpClient is null)
                 throw new ArgumentNullException(nameof(this.Connection.HttpClient));
@@ -87,28 +85,37 @@ namespace Databricks.Sql.Net.Command
                 throw new ArgumentException("Host is not defined");
 
             // Build the request uri to Sql Statements
-            var requestUri = BuildUri(this.Connection.Options.Host, DbricksConnection.SqlStatementsPath);
+            var requestUri = this.Connection.GetSqlStatementsPath();
 
             if (cancellationToken.IsCancellationRequested)
                 cancellationToken.ThrowIfCancellationRequested();
 
+            var token = await this.Connection.Authentication.GetTokenAsync(cancellationToken).ConfigureAwait(false);
+
+            if (string.IsNullOrEmpty(token))
+                throw new InvalidOperationException("Token is null or empty");
+
             // Execute my OpenAsync in my policy context
             var dbricksResponse = await this.Connection.Policy.ExecuteAsync(
-                ct => this.SendAsync(requestUri, limit, ct), progress, cancellationToken);
+                ct => this.SendAsync(requestUri, limit, token, ct), progress, cancellationToken);
 
             return dbricksResponse;
         }
 
-        public async Task<T> LoadAsync<T>(int? limit = default, IProgress<T> progress = default, CancellationToken cancellationToken = default)
+
+        /// <summary>
+        /// Load the result of the command into a generic type T
+        /// </summary>
+        public async Task<List<T>> LoadAsync<T>(int? limit = default, IProgress<T> progress = default, CancellationToken cancellationToken = default)
         {
-            var dbricksResponse = await ExecuteAsync(limit, progress, cancellationToken);
-
-            var jsonResult = dbricksResponse.ToJsonArray();
-            var result = JsonSerializer.Deserialize<T>(jsonResult);
-
+            var jsonArray = await LoadJsonAsync(limit, default, cancellationToken);
+            var result = JsonSerializer.Deserialize<List<T>>(jsonArray);
             return result;
         }
 
+        /// <summary>
+        /// Load the result of the command into a DataTable
+        /// </summary>
         public async Task<DataTable> LoadDataTableAsync(int? limit = default, IProgress<DataTable> progress = default, CancellationToken cancellationToken = default)
         {
             var dbricksResponse = await ExecuteAsync(limit, progress, cancellationToken);
@@ -123,7 +130,7 @@ namespace Databricks.Sql.Net.Command
             foreach (var column in dbricksResponse.Manifest.Schema.Columns)
             {
                 Type type = typeof(string);
-                if (Enum.TryParse(column.TypeText, out DbricksType dbricksType))
+                if (Enum.TryParse(column.TypeText, out SqlWarehouseType dbricksType))
                     type = GetTypeFromDbricksType(dbricksType);
 
                 var dc = new DataColumn(column.Name, type);
@@ -138,7 +145,7 @@ namespace Databricks.Sql.Net.Command
                 foreach (var column in dbricksResponse.Manifest.Schema.Columns)
                 {
                     Type type = typeof(string);
-                    if (Enum.TryParse(column.TypeText, out DbricksType dbricksType))
+                    if (Enum.TryParse(column.TypeText, out SqlWarehouseType dbricksType))
                         type = GetTypeFromDbricksType(dbricksType);
 
 
@@ -152,7 +159,10 @@ namespace Databricks.Sql.Net.Command
 
         }
 
-        public async Task<JsonArray> LoadJsonAsync(int? limit = default, IProgress<DataTable> progress = default, CancellationToken cancellationToken = default)
+        /// <summary>
+        /// Load the result of the command into a JsonArray
+        /// </summary>
+        public async Task<JsonArray> LoadJsonAsync(int? limit = default, IProgress<JsonArray> progress = default, CancellationToken cancellationToken = default)
         {
             var dbricksResponse = await ExecuteAsync(limit, progress, cancellationToken);
 
@@ -168,7 +178,7 @@ namespace Databricks.Sql.Net.Command
                 {
                     Type type = typeof(string);
 
-                    if (Enum.TryParse(column.TypeText, out DbricksType dbricksType))
+                    if (Enum.TryParse(column.TypeText, out SqlWarehouseType dbricksType))
                         type = GetTypeFromDbricksType(dbricksType);
 
                     var value = TypeConverter.TryConvertTo(row[column.Position], type);
@@ -182,36 +192,36 @@ namespace Databricks.Sql.Net.Command
             return jsonArray;
         }
 
-        private Type GetTypeFromDbricksType(DbricksType dbricksType)
+        private static Type GetTypeFromDbricksType(SqlWarehouseType dbricksType)
         {
             // return dotnet type from enumeration DbricksType
             switch (dbricksType)
             {
-                case DbricksType.BIGINT:
+                case SqlWarehouseType.BIGINT:
                     return typeof(Int64);
-                case DbricksType.VOID:
+                case SqlWarehouseType.VOID:
                     return typeof(DBNull);
-                case DbricksType.STRING:
+                case SqlWarehouseType.STRING:
                     return typeof(String);
-                case DbricksType.DATE:
+                case SqlWarehouseType.DATE:
                     return typeof(DateOnly);
-                case DbricksType.TIMESTAMP:
+                case SqlWarehouseType.TIMESTAMP:
                     return typeof(DateTime);
-                case DbricksType.FLOAT:
+                case SqlWarehouseType.FLOAT:
                     return typeof(float);
-                case DbricksType.DECIMAL:
+                case SqlWarehouseType.DECIMAL:
                     return typeof(decimal);
-                case DbricksType.DOUBLE:
+                case SqlWarehouseType.DOUBLE:
                     return typeof(double);
-                case DbricksType.INTEGER:
+                case SqlWarehouseType.INTEGER:
                     return typeof(int);
-                case DbricksType.BINARY:
+                case SqlWarehouseType.BINARY:
                     return typeof(byte[]);
-                case DbricksType.SMALLINT:
+                case SqlWarehouseType.SMALLINT:
                     return typeof(Int16);
-                case DbricksType.TINYINT:
+                case SqlWarehouseType.TINYINT:
                     return typeof(byte);
-                case DbricksType.BOOLEAN:
+                case SqlWarehouseType.BOOLEAN:
                     return typeof(bool);
                 default:
                     return typeof(string);
@@ -219,12 +229,15 @@ namespace Databricks.Sql.Net.Command
         }
 
 
-        private async Task<DbricksResponse> SendAsync(string requestUri, int? limit, CancellationToken cancellationToken)
+        private async Task<SqlWarehouseResponse> SendAsync(Uri requestUri, int? limit, string token, CancellationToken cancellationToken)
         {
             var contentType = "application/json";
 
             // Create the request message
             var requestMessage = new HttpRequestMessage(HttpMethod.Post, requestUri);
+
+            // Add the Authorization header
+            requestMessage.Headers.Add("Authorization", $"Bearer {token}");
 
             // Adding others headers
             if (this.Connection.CustomHeaders != null && this.Connection.CustomHeaders.Count > 0)
@@ -242,7 +255,7 @@ namespace Databricks.Sql.Net.Command
             if (!string.IsNullOrEmpty(contentType) && !requestMessage.Content.Headers.Contains("content-type"))
                 requestMessage.Content.Headers.Add("content-type", contentType);
 
-            DbricksResponse dbricksResponse = default;
+            SqlWarehouseResponse dbricksResponse = default;
 
             // Eventually, send the request
             var response = await this.Connection.HttpClient.SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
@@ -255,7 +268,7 @@ namespace Databricks.Sql.Net.Command
             using (var streamResponse = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false))
             {
                 if (streamResponse.CanRead)
-                    dbricksResponse = await JsonSerializer.DeserializeAsync<DbricksResponse>(streamResponse, cancellationToken: cancellationToken);
+                    dbricksResponse = await JsonSerializer.DeserializeAsync<SqlWarehouseResponse>(streamResponse, cancellationToken: cancellationToken);
             }
 
             if (dbricksResponse.Status.State == "FAILED")
@@ -308,42 +321,6 @@ namespace Databricks.Sql.Net.Command
 
         }
 
-        private string BuildUri(string baseUri, string path)
-        {
-            var requestUri = new StringBuilder();
-            requestUri.Append(baseUri);
-            if (!string.IsNullOrEmpty(path))
-            {
-                if (!baseUri.EndsWith("/"))
-                    requestUri.Append('/');
-
-                if (path.StartsWith("/", StringComparison.CurrentCultureIgnoreCase))
-                    requestUri.Append(path.AsSpan(1));
-                else
-                    requestUri.Append(path);
-            }
-
-            // Remove trailing slash at end of requestUri
-            if (requestUri[^1] == '/')
-                requestUri.Remove(requestUri.Length - 1, 1);
-
-
-
-            // Add params if any
-            if (this.Connection.QueryParameters != null && this.Connection.QueryParameters.Count > 0)
-            {
-                string prefix = "?";
-                foreach (var kvp in this.Connection.QueryParameters)
-                {
-                    requestUri.AppendFormat("{0}{1}={2}", prefix, Uri.EscapeDataString(kvp.Key),
-                                            Uri.EscapeDataString(kvp.Value));
-                    if (prefix.Equals("?"))
-                        prefix = "&";
-                }
-            }
-
-            return requestUri.ToString();
-        }
 
     }
 }

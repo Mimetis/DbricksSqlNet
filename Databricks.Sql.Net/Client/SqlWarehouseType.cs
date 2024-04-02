@@ -4,9 +4,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Databricks.Sql.Net.Enumeration
+namespace Databricks.Sql.Net.Client
 {
-    public enum DbricksType
+    public enum SqlWarehouseType
     {
         VOID, // aka NULL
         STRING,

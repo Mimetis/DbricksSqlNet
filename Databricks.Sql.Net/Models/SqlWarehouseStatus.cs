@@ -1,13 +1,13 @@
 ﻿using System.Text.Json.Serialization;
 
-namespace DataBrickConnector.Models
+namespace Databricks.Sql.Net.Models
 {
-    public record DbricksStatus
+    public record SqlWarehouseStatus
     {
         [JsonPropertyName("state")]
         public string State { get; init; }
 
         [JsonPropertyName("error")]
-        public DbricksStatusError Error { get; init; }
+        public SqlWarehouseStatusError Error { get; init; }
     }
 }

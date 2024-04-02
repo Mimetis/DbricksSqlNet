@@ -1,8 +1,8 @@
 ﻿using System.Text.Json.Serialization;
 
-namespace DataBrickConnector.Models
+namespace Databricks.Sql.Net.Models
 {
-    public record DbricksParameters
+    public record SqlWarehouseParameters
     {
         [JsonPropertyName("warehouse_id")]
         public string WarehouseId { get; init; }

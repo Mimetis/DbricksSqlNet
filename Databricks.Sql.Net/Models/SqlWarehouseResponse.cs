@@ -1,19 +1,19 @@
 ﻿using System.Text.Json.Serialization;
 
-namespace DataBrickConnector.Models
+namespace Databricks.Sql.Net.Models
 {
-    public record DbricksResponse
+    public record SqlWarehouseResponse
     {
         [JsonPropertyName("statement_id")]
         public string StatementId { get; init; }
 
         [JsonPropertyName("status")]
-        public DbricksStatus Status { get; init; }
+        public SqlWarehouseStatus Status { get; init; }
 
         [JsonPropertyName("manifest")]
-        public DbricksSqlManifest Manifest { get; init; }
+        public SqlWarehouseSqlManifest Manifest { get; init; }
 
         [JsonPropertyName("result")]
-        public DbricksResult Result { get; init; }
+        public SqlWarehouseResult Result { get; init; }
     }
 }

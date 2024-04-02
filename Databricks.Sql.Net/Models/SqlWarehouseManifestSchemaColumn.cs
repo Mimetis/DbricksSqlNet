@@ -1,8 +1,8 @@
 ﻿using System.Text.Json.Serialization;
 
-namespace DataBrickConnector.Models
+namespace Databricks.Sql.Net.Models
 {
-    public record DbricksManifestSchemaColumn
+    public record SqlWarehouseManifestSchemaColumn
     {
         [JsonPropertyName("name")]
         public string Name { get; init; }

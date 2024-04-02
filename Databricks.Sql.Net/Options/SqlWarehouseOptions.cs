@@ -4,13 +4,13 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Databricks.Sql.Net
+namespace Databricks.Sql.Net.Options
 {
-    public class DbricksOptions
+    public class SqlWarehouseOptions
     {
 
         // ctor
-        public DbricksOptions() { }
+        public SqlWarehouseOptions() { }
 
         /// <summary>
         /// Databricks Host
@@ -41,6 +41,16 @@ namespace Databricks.Sql.Net
         /// Gets or Sets the wait timeout in seconds (default 30)
         /// </summary>
         public int WaitTimeout { get; set; } = 30;
+
+        /// <summary>
+        /// Get or Sets the managed identity client id. Only used when UseManagedIdentity is true
+        /// </summary>
+        public string ManagedIdentityClientId { get; set; }
+
+        /// <summary>
+        /// Get or Sets the tenant id
+        /// </summary>
+        public string TenantId { get; set; }
 
     }
 }

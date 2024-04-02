@@ -1,13 +1,13 @@
 ﻿using System.Text.Json.Serialization;
 
-namespace DataBrickConnector.Models
+namespace Databricks.Sql.Net.Models
 {
-    public record DbricksManifestSchema
+    public record SqlWarehouseManifestSchema
     {
         [JsonPropertyName("column_count")]
         public int ColumnCount { get; init; }
 
         [JsonPropertyName("columns")]
-        public DbricksManifestSchemaColumn[] Columns { get; init; }
+        public SqlWarehouseManifestSchemaColumn[] Columns { get; init; }
     }
 }

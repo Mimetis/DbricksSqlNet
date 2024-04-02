@@ -1,8 +1,8 @@
 ﻿using System.Text.Json.Serialization;
 
-namespace DataBrickConnector.Models
+namespace Databricks.Sql.Net.Models
 {
-    public record DbricksStatusError
+    public record SqlWarehouseStatusError
     {
         [JsonPropertyName("error_code")]
         public string ErrorCode { get; init; }

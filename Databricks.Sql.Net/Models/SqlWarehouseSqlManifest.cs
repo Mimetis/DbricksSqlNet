@@ -1,14 +1,14 @@
 ﻿using System.Text.Json.Serialization;
 
-namespace DataBrickConnector.Models
+namespace Databricks.Sql.Net.Models
 {
-    public record DbricksSqlManifest
+    public record SqlWarehouseSqlManifest
     {
         [JsonPropertyName("format")]
         public string Format { get; init; }
 
         [JsonPropertyName("schema")]
-        public DbricksManifestSchema Schema { get; init; }
+        public SqlWarehouseManifestSchema Schema { get; init; }
 
         [JsonPropertyName("total_row_count")]
         public int TotalRowCount { get; init; }
