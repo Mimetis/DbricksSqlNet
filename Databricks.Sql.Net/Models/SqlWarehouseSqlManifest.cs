@@ -1,4 +1,5 @@
-﻿using System.Text.Json.Serialization;
+﻿using System.Collections.Generic;
+using System.Text.Json.Serialization;
 
 namespace Databricks.Sql.Net.Models
 {
@@ -13,7 +14,13 @@ namespace Databricks.Sql.Net.Models
         [JsonPropertyName("total_row_count")]
         public int TotalRowCount { get; init; }
 
+        [JsonPropertyName("total_chunk_count")]
+        public int TotalChunkCount { get; init; }
+
         [JsonPropertyName("truncated")]
         public bool Truncated { get; init; }
+
+        [JsonPropertyName("chunks")]
+        public List<SqlWarehouseChunk> Chunks{ get; init; }
     }
 }

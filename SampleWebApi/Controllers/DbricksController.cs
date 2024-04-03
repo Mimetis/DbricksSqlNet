@@ -10,6 +10,8 @@ using Azure.Identity;
 using Azure.Core;
 using Databricks.Sql.Net.Client;
 using Databricks.Sql.Net.Options;
+using System.Text.Json;
+using Databricks.Sql.Net.Models;
 
 namespace SampleWebApi.Controllers
 {
@@ -95,13 +97,20 @@ namespace SampleWebApi.Controllers
         }
 
         [HttpGet()]
-        [Route("Customers")]
-        public async Task<JsonResult> GetCustomersAsync()
+        [Route("LineItems")]
+        public async Task<JsonResult> GetLineItemsAsync(int count = 100000)
         {
-            var command = new SqlWarehouseCommand(connection, "select * from samples.tpch.customer");
-            var json = await command.LoadJsonAsync(10);
+            var progress = new Progress<SqlWarehouseProgress>();
+            progress.ProgressChanged += (sender, e) =>
+            {
+                Debug.WriteLine(e);
+            };
 
-            return new JsonResult(json);
+            var command = new SqlWarehouseCommand(connection, "SELECT * FROM lineitem");
+            var json = await command.LoadJsonArrayAsync(count, progress);
+
+            return new JsonResult(json.Count);
         }
+
     }
 }

@@ -86,7 +86,7 @@ namespace Databricks.Sql.Net.Client
             this.Authentication = new AuthenticationProvider(credential, dbriksOptions);
         }
 
-        private Uri GetPath(string relativePath) => new(this.RootUri, relativePath);
+        public Uri GetPath(string relativePath) => new(this.RootUri, relativePath);
 
         private Uri GetPathWithQueryParmaters(string relativePath, params object[] queryParameters) => GetPath(string.Format(relativePath, queryParameters));
 

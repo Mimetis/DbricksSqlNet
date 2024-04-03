@@ -40,7 +40,7 @@ namespace Databricks.Sql.Net.Options
         /// <summary>
         /// Gets or Sets the wait timeout in seconds (default 30)
         /// </summary>
-        public int WaitTimeout { get; set; } = 30;
+        public int? WaitTimeout { get; set; } = 30;
 
         /// <summary>
         /// Get or Sets the managed identity client id. Only used when UseManagedIdentity is true
