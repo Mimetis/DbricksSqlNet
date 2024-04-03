@@ -1,10 +1,11 @@
-﻿using Azure.Core;
+﻿using System;
+using Azure.Core;
 using Databricks.Sql.Net.Options;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
+using Azure.Core.Pipeline;
+using System.Threading;
 using System.Threading.Tasks;
+using Azure.Identity;
+
 
 namespace Databricks.Sql.Net.Authentication
 {
@@ -12,21 +13,31 @@ namespace Databricks.Sql.Net.Authentication
     /// <summary>
     /// Token Credential for ApiKey
     /// </summary>
-    /// <param name="apiKey"></param>
-    public class ApiKeyTokenCredential : TokenCredential
+    public class ApiKeyTokenCredential(SqlWarehouseOptions options) : TokenCredential
     {
-        public ApiKeyTokenCredential(SqlWarehouseOptions options)
-        {
-            if (string.IsNullOrEmpty(options.ApiKey))
-                throw new InvalidOperationException("ApiKey is required");
+        public string ApiKey { get; } = options.ApiKey;
 
-            this.ApiKey = options.ApiKey;
+        /// <summary>
+        /// Get the token from the ApiKey stored in appSettings
+        /// </summary>
+        public override AccessToken GetToken(TokenRequestContext requestContext, CancellationToken cancellationToken)
+        {
+            var valueTask = GetTokenAsync(requestContext, cancellationToken);
+            if (valueTask.IsCompleted)
+                return valueTask.Result;
+
+            throw new InvalidOperationException("GetToken Task is not completed");
         }
 
-        public string ApiKey { get; }
+        /// <summary>
+        /// Get the token from the ApiKey stored in appSettings
+        /// </summary>
+        public override ValueTask<AccessToken> GetTokenAsync(TokenRequestContext requestContext, CancellationToken cancellationToken)
+        {
+            if (string.IsNullOrEmpty(ApiKey))
+                throw new CredentialUnavailableException("ApiKey is required");
 
-        public override AccessToken GetToken(TokenRequestContext requestContext, CancellationToken cancellationToken) => new(ApiKey, DateTime.Now.AddDays(1000));
-
-        public override ValueTask<AccessToken> GetTokenAsync(TokenRequestContext requestContext, CancellationToken cancellationToken) => new(new AccessToken(ApiKey, DateTime.Now.AddDays(1000)));
+            return new(new AccessToken(ApiKey, DateTime.Now.AddDays(1000)));
+        }
     }
 }

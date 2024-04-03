@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Net;
+using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -29,7 +30,7 @@ namespace Databricks.Sql.Net.Client
 
 
         public HttpClient HttpClient { get; }
-        public Policy Policy { get; }
+        public Policy Policy { get; set; }
 
 
         public SqlWarehouseOptions Options { get; }
@@ -49,16 +50,12 @@ namespace Databricks.Sql.Net.Client
 
         public Uri GetSqlStatementsResultPath(string statementId) => GetPathWithQueryParmaters(Constants.SqlStatementsResultPath, statementId);
 
-        public SqlWarehouseConnection(IOptions<SqlWarehouseOptions> dbriksOptions, HttpClient client = null, Policy policy = null, TokenCredential customTokenCredential = null)
-            : this(dbriksOptions.Value, client, policy, customTokenCredential)
+        public SqlWarehouseConnection(SqlWarehouseOptions dbriksOptions, HttpClient client = null, Policy policy = null,
+            DefaultAzureCredentialOptions defaultAzureCredentialOptions = null, TokenCredential customTokenCredential = null)
         {
-        }
-
-        public SqlWarehouseConnection(SqlWarehouseOptions dbriksOptions, HttpClient client = null, Policy policy = null, TokenCredential customTokenCredential = null)
-        {
-            Policy = EnsurePolicy(policy);
-            Options = dbriksOptions;
-            RootUri = new Uri(Options.Host);
+            this.Policy = EnsurePolicy(policy);
+            this.Options = dbriksOptions;
+            this.RootUri = new Uri(Options.Host);
 
             // if no HttpClient provisionned, create a new one
             if (client == null)
@@ -77,21 +74,21 @@ namespace Databricks.Sql.Net.Client
             }
 
             // create a chained token credential based on the options
-            var azureAuthOptions = new DefaultAzureCredentialOptions
+            var azureAuthOptions = defaultAzureCredentialOptions ?? new DefaultAzureCredentialOptions
             {
                 ExcludeInteractiveBrowserCredential = false,
                 ManagedIdentityClientId = this.Options.ManagedIdentityClientId,
                 TenantId = this.Options.TenantId,
             };
-            var credential = new ChainedTokenCredential(new ApiKeyTokenCredential(Options), new DefaultAzureCredential(azureAuthOptions));
 
-            Authentication = new AuthenticationProvider(credential, dbriksOptions);
+            var credential = customTokenCredential ?? new ChainedTokenCredential(new ApiKeyTokenCredential(Options), new DefaultAzureCredential(azureAuthOptions));
+
+            this.Authentication = new AuthenticationProvider(credential, dbriksOptions);
         }
 
-        private Uri GetPath(string relativePath) => new(RootUri, relativePath);
+        private Uri GetPath(string relativePath) => new(this.RootUri, relativePath);
 
         private Uri GetPathWithQueryParmaters(string relativePath, params object[] queryParameters) => GetPath(string.Format(relativePath, queryParameters));
-
 
         private static Policy EnsurePolicy(Policy policy)
         {
@@ -99,9 +96,7 @@ namespace Databricks.Sql.Net.Client
                 return policy;
 
             // Defining my retry policy
-            policy = Policy.WaitAndRetry(1, TimeSpan.FromMilliseconds(500));
-
-            return policy;
+            return Policy.WaitAndRetry(1, TimeSpan.FromMilliseconds(500));
         }
     }
 }

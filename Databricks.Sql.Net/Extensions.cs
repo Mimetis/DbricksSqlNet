@@ -1,4 +1,7 @@
-﻿using Databricks.Sql.Net.Client;
+﻿using Azure.Core;
+using Azure.Identity;
+using Databricks.Sql.Net.Authentication;
+using Databricks.Sql.Net.Client;
 using Databricks.Sql.Net.Models;
 using Databricks.Sql.Net.Options;
 using Microsoft.Extensions.Configuration;
@@ -8,6 +11,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Net.Http;
 using System.Text;
 using System.Text.Json.Nodes;
 using System.Threading.Tasks;
@@ -29,26 +33,34 @@ namespace Databricks.Sql.Net
         ///         "Catalog": "hive_catalog",
         ///         "Schema": "schema_default"
         ///         "WaitTimeout": 30,
-        ///         "UseManagedIdentity": true / false,
+        ///         "ManagedIdentityClientId": "xxxxx-xxxx-xxxx-xxxx",
         ///         "TenantId": "xxxxx-xxxx-xxxx-xxxx"
         ///     }
         /// </code>
         /// </example>
         /// </summary>
-        public static IServiceCollection AddSqlWarehouse(
+        private static IServiceCollection AddSqlWarehouse(
           this IServiceCollection services,
           IConfiguration configuration,
-          string configSectionName = "Databricks")
+          string configSectionName,
+          Policy policy,
+          DefaultAzureCredentialOptions defaultAzureCredentialOptions, TokenCredential customTokenCredential)
         {
             ArgumentNullException.ThrowIfNull(configuration);
 
             try
             {
-
+                services.AddHttpClient<SqlWarehouseConnection>();
                 services.AddOptions<SqlWarehouseOptions>().Configure<IConfiguration>((options, configuration) =>
                     configuration.GetSection(configSectionName).Bind(options));
 
-                services.AddTransient<SqlWarehouseConnection>();
+                services.AddTransient((s) =>
+                {
+                    var options = s.GetRequiredService<IOptions<SqlWarehouseOptions>>().Value;
+                    var httpClient = s.GetRequiredService<IHttpClientFactory>().CreateClient();
+                    var connection = new SqlWarehouseConnection(options, httpClient, policy, defaultAzureCredentialOptions, customTokenCredential);
+                    return connection;
+                });
             }
             catch (Exception ex)
             {
@@ -58,5 +70,27 @@ namespace Databricks.Sql.Net
 
             return services;
         }
+
+        /// <inheritdoc cref="AddSqlWarehouse(IServiceCollection, IConfiguration, string, Policy, DefaultAzureCredentialOptions, TokenCredential)"/>/>
+        public static IServiceCollection AddSqlWarehouse(this IServiceCollection services, IConfiguration configuration,
+            string configSectionName = "Databricks", Policy policy = default)
+        {
+            return AddSqlWarehouse(services, configuration, configSectionName, policy, default, default);
+        }
+
+        /// <inheritdoc cref="AddSqlWarehouse(IServiceCollection, IConfiguration, string, Policy, DefaultAzureCredentialOptions, TokenCredential)"/>/>
+        public static IServiceCollection AddSqlWarehouse(this IServiceCollection services, IConfiguration configuration,
+            DefaultAzureCredentialOptions defaultAzureCredentialOptions, string configSectionName = "Databricks", Policy policy = default)
+        {
+            return AddSqlWarehouse(services, configuration, configSectionName, policy, defaultAzureCredentialOptions, default);
+        }
+
+        /// <inheritdoc cref="AddSqlWarehouse(IServiceCollection, IConfiguration, string, Policy, DefaultAzureCredentialOptions, TokenCredential)"/>/>
+        public static IServiceCollection AddSqlWarehouse(this IServiceCollection services, IConfiguration configuration,
+            TokenCredential customTokenCredential, string configSectionName = "Databricks", Policy policy = default)
+        {
+            return AddSqlWarehouse(services, configuration, configSectionName, policy, default, customTokenCredential);
+        }
+
     }
 }

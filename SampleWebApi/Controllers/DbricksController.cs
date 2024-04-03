@@ -32,7 +32,7 @@ namespace SampleWebApi.Controllers
         [Route("Environment")]
         public Task<JsonResult> GetEnvironmentAsync()
         {
-            
+
             // get if we are in dev mode or prod mode
             var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
 
@@ -41,24 +41,57 @@ namespace SampleWebApi.Controllers
 
 
         [HttpGet()]
-        [Route("Identity")]
-        public async Task<JsonResult> GetIdentityAsync()
+        [Route("Options")]
+        public Task<JsonResult> GetOptionsAsync()
         {
-            var authOptions = new DefaultAzureCredentialOptions { ExcludeInteractiveBrowserCredential = false, TenantId = options.TenantId };
-            var credential = new DefaultAzureCredential(authOptions);
+
+            // get if we are in dev mode or prod mode
+            return Task.FromResult(new JsonResult(options));
+        }
+
+
+
+        [HttpGet()]
+        [Route("UserAssignedIdentity")]
+        public async Task<JsonResult> GetUserAssignedIdentityAsync()
+        {
+            var azureAuthOptions = new DefaultAzureCredentialOptions
+            {
+                ExcludeInteractiveBrowserCredential = false,
+                ManagedIdentityClientId = options.ManagedIdentityClientId,
+                TenantId = options.TenantId,
+            };
+
+            var credential = new DefaultAzureCredential(azureAuthOptions);
 
             var token = await credential.GetTokenAsync(new TokenRequestContext([$"{Constants.DatabricksResourceId}/.default"]));
-            
+
             return new JsonResult(token.Token);
         }
+
+
+
+        [HttpGet()]
+        [Route("SystemAssignedIdentity")]
+        public async Task<JsonResult> GetSystemAssignedIdentityAsync()
+        {
+            var azureAuthOptions = new DefaultAzureCredentialOptions { TenantId = options.TenantId, };
+            var credential = new DefaultAzureCredential(azureAuthOptions);
+
+            var token = await credential.GetTokenAsync(new TokenRequestContext([$"{Constants.DatabricksResourceId}/.default"]));
+
+            return new JsonResult(token.Token);
+        }
+
 
 
         [HttpGet()]
         [Route("DbricksAuth")]
         public async Task<JsonResult> GetDbricksAuthAsync()
         {
+            // get the available token
             var token = await connection.Authentication.GetTokenAsync();
-            return new JsonResult(token);   
+            return new JsonResult(token);
         }
 
         [HttpGet()]

@@ -14,6 +14,7 @@ namespace SampleWebApi
 
             // Add services to the container.
             builder.Services.AddOptions();
+            builder.Services.AddHttpClient();
             builder.Services.AddSqlWarehouse(builder.Configuration);
             builder.Services.AddControllers();
 
