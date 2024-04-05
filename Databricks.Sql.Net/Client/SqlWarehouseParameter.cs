@@ -32,12 +32,20 @@ namespace Databricks.Sql.Net.Client
 
                 var typeNameSb = new StringBuilder(stringValue);
 
-                if (Size > 0 && (Type == SqlWarehouseType.DOUBLE || Type == SqlWarehouseType.DECIMAL || Type == SqlWarehouseType.FLOAT))
+                if (Precision.HasValue && Type == SqlWarehouseType.DECIMAL)
                 {
-                    typeNameSb.Append($"({Size}");
+                    if (Precision <= 0 || Precision > 38)
+                        throw new ArgumentOutOfRangeException(nameof(Precision), "Precision must be between 1 and 38.");
 
-                    if (Scale > 0)
+                    typeNameSb.Append($"({Precision}");
+
+                    if (Scale.HasValue)
+                    {
+                        if (Scale < 0 || Scale > Precision)
+                            throw new ArgumentOutOfRangeException(nameof(Scale), "Scale must be between 0 and Precision.");
+
                         typeNameSb.Append($",{Scale}");
+                    }
 
                     typeNameSb.Append(')');
                 }
@@ -49,17 +57,12 @@ namespace Databricks.Sql.Net.Client
         /// <summary>
         /// Gets or Sets the column precision.
         /// </summary>
-        public virtual byte Precision { get; set; }
+        public virtual byte? Precision { get; set; }
 
         /// <summary>
         /// Gets or Sets the column scale.
         /// </summary>
-        public virtual byte Scale { get; set; }
-
-        /// <summary>
-        /// Gets or Sets the column size.
-        /// </summary>
-        public virtual byte Size { get; set; }
+        public virtual byte? Scale { get; set; }
 
         /// <summary>
         /// Gets or Sets the value of the parameter.

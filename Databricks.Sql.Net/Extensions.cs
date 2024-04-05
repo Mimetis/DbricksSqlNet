@@ -92,5 +92,36 @@ namespace Databricks.Sql.Net
             return AddSqlWarehouse(services, configuration, configSectionName, policy, default, customTokenCredential);
         }
 
+        public static void Add(this List<SqlWarehouseParameter> list, string parameterName, SqlWarehouseType type, object value)
+            => list.Add(new SqlWarehouseParameter { ParameterName = parameterName, Type = type, Value = value });
+        public static void AddString(this List<SqlWarehouseParameter> list, string parameterName, string value)
+            => list.Add(new SqlWarehouseParameter { ParameterName = parameterName, Type = SqlWarehouseType.STRING, Value = value });
+        public static void AddTinyint(this List<SqlWarehouseParameter> list, string parameterName, byte value)
+            => list.Add(new SqlWarehouseParameter { ParameterName = parameterName, Type = SqlWarehouseType.TINYINT, Value = value });
+        //public static void AddBytes(this List<SqlWarehouseParameter> list, string parameterName, byte[] value)
+        //    => list.Add(new SqlWarehouseParameter { ParameterName = parameterName, Type = SqlWarehouseType.BINARY, Value = value });
+        public static void AddBoolean(this List<SqlWarehouseParameter> list, string parameterName, bool value)
+            => list.Add(new SqlWarehouseParameter { ParameterName = parameterName, Type = SqlWarehouseType.BOOLEAN, Value = value });
+        public static void AddDate(this List<SqlWarehouseParameter> list, string parameterName, DateOnly value)
+            => list.Add(new SqlWarehouseParameter { ParameterName = parameterName, Type = SqlWarehouseType.DATE, Value = value });
+        public static void AddBigInt(this List<SqlWarehouseParameter> list, string parameterName, long value)
+            => list.Add(new SqlWarehouseParameter { ParameterName = parameterName, Type = SqlWarehouseType.BIGINT, Value = value });
+        public static void AddDecimal(this List<SqlWarehouseParameter> list, string parameterName, decimal value, byte? precision = null, byte? scale = null )
+            => list.Add(new SqlWarehouseParameter { ParameterName = parameterName, Type = SqlWarehouseType.DECIMAL, Value = value, Scale = scale, Precision = precision });
+        public static void AddDouble(this List<SqlWarehouseParameter> list, string parameterName, double value)
+            => list.Add(new SqlWarehouseParameter { ParameterName = parameterName, Type = SqlWarehouseType.DOUBLE, Value = value });
+        public static void AddFloat(this List<SqlWarehouseParameter> list, string parameterName, float value)
+            => list.Add(new SqlWarehouseParameter { ParameterName = parameterName, Type = SqlWarehouseType.FLOAT, Value = value });
+        public static void AddInt(this List<SqlWarehouseParameter> list, string parameterName, int value)
+            => list.Add(new SqlWarehouseParameter { ParameterName = parameterName, Type = SqlWarehouseType.INT, Value = value });
+        public static void AddSmallInt(this List<SqlWarehouseParameter> list, string parameterName, short value)
+            => list.Add(new SqlWarehouseParameter { ParameterName = parameterName, Type = SqlWarehouseType.SMALLINT, Value = value });
+        public static void AddTimestamp(this List<SqlWarehouseParameter> list, string parameterName, DateTime value)
+            => list.Add(new SqlWarehouseParameter { ParameterName = parameterName, Type = SqlWarehouseType.TIMESTAMP, Value = value });
+        public static void AddTimestampTz(this List<SqlWarehouseParameter> list, string parameterName, DateTime value)
+            => list.Add(new SqlWarehouseParameter { ParameterName = parameterName, Type = SqlWarehouseType.TIMESTAMP_NTZ, Value = value });
+
+
+
     }
 }

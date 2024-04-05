@@ -159,7 +159,7 @@ namespace Databricks.Sql.Net.Tests
         {
             var httpClient = Mockups.GetHttpClientSequenceMock(Mockups.DATABRICKS_JSON_MULTIPLE_CHUNKS_1, Mockups.DATABRICKS_JSON_MULTIPLE_CHUNKS_2);
 
-          var options = new SqlWarehouseOptions { Host = "https://adb-xxxx-1.azuredatabricks.net", ApiKey = "eyj..." };
+            var options = new SqlWarehouseOptions { Host = "https://adb-xxxx-1.azuredatabricks.net", ApiKey = "eyj..." };
             var connection = new SqlWarehouseConnection(options, httpClient);
 
             var command = new SqlWarehouseCommand(connection, "SELECT * FROM lineitem");
@@ -169,6 +169,95 @@ namespace Databricks.Sql.Net.Tests
             Assert.IsType<List<LineItem>>(lstItems);
             Assert.Equal(6, lstItems.Count);
 
+        }
+
+
+        [Fact]
+        public void Check_Parameters_In_Body()
+        {
+            var httpClient = Mockups.GetHttpClientMock(Mockups.DATABRICKS_JSON_ARRAY_RESPONSE);
+
+            var options = new SqlWarehouseOptions { Host = "https://adb-xxxx-1.azuredatabricks.net", ApiKey = "eyj..." };
+            var connection = new SqlWarehouseConnection(options, httpClient);
+
+            var command = new SqlWarehouseCommand(connection, "SELECT * FROM lineitem WHERE ...");
+            command.Parameters.AddBigInt("v_bigint", 1);
+            command.Parameters.AddBoolean("v_boolean", true);
+            command.Parameters.AddDate("v_date", new DateOnly(2024, 02, 28));
+            command.Parameters.AddDecimal("v_decimal_1", 2);
+            command.Parameters.AddDecimal("v_decimal_2", (decimal)2.85, 6, 3);
+            command.Parameters.AddDouble("v_double", 3);
+            command.Parameters.AddFloat("v_float", (float)4.458);
+            command.Parameters.AddInt("v_int", 5);
+            command.Parameters.AddSmallInt("v_smallint", 6);
+            command.Parameters.AddString("v_string", "test");
+            command.Parameters.AddTimestamp("v_timestamp", new DateTime(2024, 02, 28, 5, 55, 15, 155, 100));
+            command.Parameters.AddTimestampTz("v_timestamp_tz", new DateTime(2024, 02, 28, 5, 55, 15, 155, 100));
+            command.Parameters.AddTinyint("v_tinyint", 5);
+            command.Parameters.Add("v_custom", SqlWarehouseType.BOOLEAN, false);
+
+            // Act
+            var content = command.BuildRequestContent(3);
+            var deserializedContent = JsonSerializer.Deserialize<JsonElement>(content);
+
+            var parameters = deserializedContent.GetProperty("parameters");
+
+            var v_bigint = parameters.EnumerateArray().First(je => je.GetProperty("name").GetString() == "v_bigint");
+            Assert.Equal(1, v_bigint.GetProperty("value").GetInt64());
+            Assert.Equal("BIGINT", v_bigint.GetProperty("type").GetString());
+
+            // Check all parameters and make an assert in property value and an assert on type
+            var v_boolean = parameters.EnumerateArray().First(je => je.GetProperty("name").GetString() == "v_boolean");
+            Assert.True(v_boolean.GetProperty("value").GetBoolean());
+            Assert.Equal("BOOLEAN", v_boolean.GetProperty("type").GetString());
+
+            var v_date = parameters.EnumerateArray().First(je => je.GetProperty("name").GetString() == "v_date");
+            Assert.Equal("2024-02-28", v_date.GetProperty("value").GetString());
+            Assert.Equal("DATE", v_date.GetProperty("type").GetString());
+
+            var v_decimal_1 = parameters.EnumerateArray().First(je => je.GetProperty("name").GetString() == "v_decimal_1");
+            Assert.Equal(2, v_decimal_1.GetProperty("value").GetDecimal());
+            Assert.Equal("DECIMAL", v_decimal_1.GetProperty("type").GetString());
+
+            var v_decimal_2 = parameters.EnumerateArray().First(je => je.GetProperty("name").GetString() == "v_decimal_2");
+            Assert.Equal((decimal)2.85, v_decimal_2.GetProperty("value").GetDecimal());
+            Assert.Equal("DECIMAL(6,3)", v_decimal_2.GetProperty("type").GetString());
+
+            var v_double = parameters.EnumerateArray().First(je => je.GetProperty("name").GetString() == "v_double");
+            Assert.Equal(3, v_double.GetProperty("value").GetDouble());
+            Assert.Equal("DOUBLE", v_double.GetProperty("type").GetString());
+
+            var v_float = parameters.EnumerateArray().First(je => je.GetProperty("name").GetString() == "v_float");
+            Assert.Equal((float)4.458, v_float.GetProperty("value").GetSingle());
+            Assert.Equal("FLOAT", v_float.GetProperty("type").GetString());
+
+            var v_int = parameters.EnumerateArray().First(je => je.GetProperty("name").GetString() == "v_int");
+            Assert.Equal(5, v_int.GetProperty("value").GetInt32());
+            Assert.Equal("INT", v_int.GetProperty("type").GetString());
+
+            var v_smallint = parameters.EnumerateArray().First(je => je.GetProperty("name").GetString() == "v_smallint");
+            Assert.Equal(6, v_smallint.GetProperty("value").GetInt16());
+            Assert.Equal("SMALLINT", v_smallint.GetProperty("type").GetString());
+
+            var v_string = parameters.EnumerateArray().First(je => je.GetProperty("name").GetString() == "v_string");
+            Assert.Equal("test", v_string.GetProperty("value").GetString());
+            Assert.Equal("STRING", v_string.GetProperty("type").GetString());
+
+            var v_timestamp = parameters.EnumerateArray().First(je => je.GetProperty("name").GetString() == "v_timestamp");
+            Assert.Equal("2024-02-28T05:55:15.1551", v_timestamp.GetProperty("value").GetString());
+            Assert.Equal("TIMESTAMP", v_timestamp.GetProperty("type").GetString());
+
+            var v_timestamp_tz = parameters.EnumerateArray().First(je => je.GetProperty("name").GetString() == "v_timestamp_tz");
+            Assert.Equal("2024-02-28T05:55:15.1551", v_timestamp_tz.GetProperty("value").GetString());
+            Assert.Equal("TIMESTAMP_NTZ", v_timestamp_tz.GetProperty("type").GetString());
+
+            var v_tinyint = parameters.EnumerateArray().First(je => je.GetProperty("name").GetString() == "v_tinyint");
+            Assert.Equal(5, v_tinyint.GetProperty("value").GetByte());
+            Assert.Equal("TINYINT", v_tinyint.GetProperty("type").GetString());
+
+            var v_custom = parameters.EnumerateArray().First(je => je.GetProperty("name").GetString() == "v_custom");
+            Assert.False(v_custom.GetProperty("value").GetBoolean());
+            Assert.Equal("BOOLEAN", v_custom.GetProperty("type").GetString());
         }
     }
 

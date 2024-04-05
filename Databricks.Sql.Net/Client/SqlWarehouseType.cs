@@ -16,10 +16,9 @@ namespace Databricks.Sql.Net.Client
         FLOAT,
         DECIMAL,
         DOUBLE,
-        INTEGER,
         INT,
         BIGINT,
-        BINARY,
+        //BINARY, // TODO: Implement BINARY
         SMALLINT,
         TINYINT,
         BOOLEAN,
