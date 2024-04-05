@@ -27,11 +27,9 @@ namespace Databricks.Sql.Net.Tests
             var connection = new SqlWarehouseConnection(options, httpClient);
 
             var command = new SqlWarehouseCommand(connection, "SELECT * FROM lineitem");
-            var content = command.BuildRequestContent(3);
-            var requestUri = connection.GetSqlStatementsPath();
 
             // Act
-            var dbricksResult = await command.ExecuteAsync(requestUri, HttpMethod.Post, "eyj...", content);
+            var dbricksResult = await command.ExecuteAsync(3);
 
             // Assert
             Assert.NotNull(dbricksResult);

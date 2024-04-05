@@ -1,4 +1,4 @@
-﻿using Databricks.Sql.Net.Models;
+﻿using Databricks.Sql.Net.Models.Sql;
 using Microsoft.Extensions.Options;
 using System;
 using System.Collections.Generic;
@@ -60,7 +60,7 @@ namespace Databricks.Sql.Net.Client
         /// <summary>
         /// Load the result of the command into a generic type T
         /// </summary>
-        public async Task<List<T>> LoadAsync<T>(int? limit = default, IProgress<SqlWarehouseProgress> progress = default, CancellationToken cancellationToken = default)
+        public async Task<List<T>> LoadAsync<T>(int? limit = default, IProgress<StatementProgress> progress = default, CancellationToken cancellationToken = default)
         {
 
             var list = new List<T>();
@@ -74,7 +74,7 @@ namespace Databricks.Sql.Net.Client
         /// <summary>
         /// Load the result of the command into a JsonArray
         /// </summary>
-        public async Task<JsonArray> LoadJsonAsync(int? limit = default, IProgress<SqlWarehouseProgress> progress = default, CancellationToken cancellationToken = default)
+        public async Task<JsonArray> LoadJsonAsync(int? limit = default, IProgress<StatementProgress> progress = default, CancellationToken cancellationToken = default)
         {
 
             var list = new JsonArray();
@@ -88,22 +88,16 @@ namespace Databricks.Sql.Net.Client
         /// <summary>
         /// Return an enumerable of JsonObject from the command
         /// </summary>
-        public async IAsyncEnumerable<JsonObject> GetJsonObjectsAsync(int? limit = default, IProgress<SqlWarehouseProgress> progress = default, [EnumeratorCancellation] CancellationToken cancellationToken = default)
+        public async IAsyncEnumerable<JsonObject> GetJsonObjectsAsync(int? limit = default, IProgress<StatementProgress> progress = default, [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
-            // Build the request uri to Sql Statements
-            var requestUri = this.Connection.GetSqlStatementsPath();
 
-            // get token
             var token = await this.Connection.Authentication.GetTokenAsync(cancellationToken).ConfigureAwait(false);
 
             if (string.IsNullOrEmpty(token))
-                throw new InvalidOperationException("Token is null or empty");
-
-            // Build data to send
-            var binaryData = BuildRequestContent(limit);
+                throw new WebException("Token is null or empty", WebExceptionStatus.UnknownError);
 
             // Get the response from the server
-            var dbricksResponse = await ExecuteAsync(requestUri, HttpMethod.Post, token, binaryData, progress, cancellationToken);
+            var dbricksResponse = await ExecuteAsync(limit, token, progress, cancellationToken);
 
             // get columns with type
             var columnsType = GetColumns(dbricksResponse);
@@ -122,7 +116,7 @@ namespace Databricks.Sql.Net.Client
                 var nextChunkUri = this.Connection.GetPath(nextChunkInternalLink);
 
                 var chunk = await this.Connection.Policy.ExecuteAsync(
-                    ct => this.SendAsync<SqlWarehouseResult>(nextChunkUri, HttpMethod.Get, token, default, ct), default, cancellationToken).ConfigureAwait(false);
+                    ct => this.Connection.SendAsync<StatementResult>(nextChunkUri, HttpMethod.Get, token, default, ct), default, cancellationToken).ConfigureAwait(false);
 
                 SendProgress(progress, dbricksResponse.Status?.State, dbricksResponse.StatementId, dbricksResponse.Manifest?.TotalRowCount, dbricksResponse.Manifest?.TotalChunkCount, chunk);
 
@@ -135,7 +129,7 @@ namespace Databricks.Sql.Net.Client
             yield break;
         }
 
-        private static Dictionary<string, (Type Type, int Position)> GetColumns(SqlWarehouseResponse dbricksResponse)
+        private static Dictionary<string, (Type Type, int Position)> GetColumns(Statement dbricksResponse)
         {
             // gets columns type based on dbricksResponse.Manifest.Schema.Columns columns
             var columnsType = new Dictionary<string, (Type Type, int Position)>();
@@ -205,11 +199,17 @@ namespace Databricks.Sql.Net.Client
         /// Execute the command and return the result as a SqlWarehouseResponse instance
         /// IF needed (status == PENDING), execute the command multiple times to get the data
         /// </summary>
-        public async Task<SqlWarehouseResponse> ExecuteAsync(Uri requestUri, HttpMethod method, string token, byte[] binaryData = default, IProgress<SqlWarehouseProgress> progress = default, CancellationToken cancellationToken = default)
+        public async Task<Statement> ExecuteAsync(int? limit = 1000, string token = default, IProgress<StatementProgress> progress = default, CancellationToken cancellationToken = default)
         {
+            if (string.IsNullOrEmpty(token))
+                token = await this.Connection.Authentication.GetTokenAsync(cancellationToken).ConfigureAwait(false);
+
+            if (string.IsNullOrEmpty(token))
+                throw new WebException("Token is null or empty", WebExceptionStatus.UnknownError);
+
 
             var dbricksResponse = await this.Connection.Policy.ExecuteAsync(
-                ct => this.SendAsync<SqlWarehouseResponse>(requestUri, method, token, binaryData, ct), default, cancellationToken).ConfigureAwait(false);
+                ct => this.Connection.SendAsync<Statement>(this.Connection.GetSqlStatementsPath(), HttpMethod.Post, token, this.BuildRequestContent(limit), ct), default, cancellationToken).ConfigureAwait(false);
 
             if (dbricksResponse == null)
                 return default;
@@ -235,7 +235,7 @@ namespace Databricks.Sql.Net.Client
 
                 // Execute my OpenAsync in my policy context
                 dbricksResponse = await this.Connection.Policy.ExecuteAsync(
-                    ct => this.SendAsync<SqlWarehouseResponse>(requestStatementUri, HttpMethod.Get, token, binaryData, ct), default, cancellationToken).ConfigureAwait(false);
+                    ct => this.Connection.SendAsync<Statement>(requestStatementUri, HttpMethod.Get, token, cancellationToken:ct), default, cancellationToken).ConfigureAwait(false);
 
                 // get status and increment counter to break the loop if needed
                 status = dbricksResponse.Status.State;
@@ -254,53 +254,9 @@ namespace Databricks.Sql.Net.Client
             return dbricksResponse;
         }
 
-        internal async Task<T> SendAsync<T>(Uri requestUri, HttpMethod method, string token, byte[] binaryData = default, CancellationToken cancellationToken = default)
+        private static void SendProgress(IProgress<StatementProgress> progress, string status, string statementId, int? totalRowCount, int? totalChunkCount, StatementResult result)
         {
-            // Create the request message
-            var requestMessage = new HttpRequestMessage(method, requestUri);
-
-            // Add the Authorization header
-            requestMessage.Headers.Add("Authorization", $"Bearer {token}");
-
-            // Adding others headers
-            if (this.Connection.CustomHeaders != null && this.Connection.CustomHeaders.Count > 0)
-                foreach (var kvp in this.Connection.CustomHeaders)
-                    if (!requestMessage.Headers.Contains(kvp.Key))
-                        requestMessage.Headers.Add(kvp.Key, kvp.Value);
-
-            // get byte array content
-            if (method == HttpMethod.Post || method == HttpMethod.Put || method == HttpMethod.Patch || method == HttpMethod.Delete)
-                requestMessage.Content = new ByteArrayContent(binaryData);
-
-            // If Json, specify header
-            if (requestMessage.Content != null && !requestMessage.Content.Headers.Contains("content-type"))
-                requestMessage.Content.Headers.Add("content-type", "application/json");
-
-            T res = default;
-
-            // Eventually, send the request
-            var response = await this.Connection.HttpClient.SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
-
-            // throw exception if response is not successfull
-            // get response from server
-            if (!response.IsSuccessStatusCode)
-                await HandleSyncErrorAsync(response);
-
-            using (var streamResponse = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false))
-            {
-                if (streamResponse.CanRead)
-                    res = await JsonSerializer.DeserializeAsync<T>(streamResponse, cancellationToken: cancellationToken);
-            }
-
-            if (cancellationToken.IsCancellationRequested)
-                cancellationToken.ThrowIfCancellationRequested();
-
-            return res;
-        }
-
-        private static void SendProgress(IProgress<SqlWarehouseProgress> progress, string status, string statementId, int? totalRowCount, int? totalChunkCount, SqlWarehouseResult result)
-        {
-            progress?.Report(new SqlWarehouseProgress
+            progress?.Report(new StatementProgress
             {
                 ChunkRowCount = result?.RowCount,
                 ChunkRowOffset = result?.RowOffset,
@@ -315,7 +271,7 @@ namespace Databricks.Sql.Net.Client
             });
         }
 
-        public byte[] BuildRequestContent(int? limit)
+        public byte[] BuildRequestContent(int? limit = 1000)
         {
 
             var databricksQueryContent = new
@@ -339,40 +295,6 @@ namespace Databricks.Sql.Net.Client
 
             return JsonSerializer.SerializeToUtf8Bytes(databricksQueryContent);
         }
-
-        private static async Task HandleSyncErrorAsync(HttpResponseMessage response)
-        {
-            try
-            {
-                Exception exception = null;
-
-                if (response.Content == null)
-                    throw new Exception(response.ReasonPhrase);
-
-                using var streamResponse = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
-
-                if (!streamResponse.CanRead)
-                    throw new Exception(response.ReasonPhrase);
-
-                var streamReader = new StreamReader(streamResponse);
-                var errorString = await streamReader.ReadToEndAsync().ConfigureAwait(false);
-
-                if (errorString != null)
-                    exception = new Exception(errorString);
-                else
-                    exception = new Exception(response.ReasonPhrase);
-
-                throw exception;
-
-            }
-            catch (Exception)
-            {
-                throw new Exception(response.ReasonPhrase);
-            }
-
-
-        }
-
 
     }
 }

@@ -11,8 +11,9 @@ using Azure.Core;
 using Databricks.Sql.Net.Client;
 using Databricks.Sql.Net.Options;
 using System.Text.Json;
-using Databricks.Sql.Net.Models;
 using System.Net.Http;
+using System.Collections.Generic;
+using Databricks.Sql.Net.Models.Sql;
 
 namespace SampleWebApi.Controllers
 {
@@ -101,7 +102,7 @@ namespace SampleWebApi.Controllers
         [Route("LineItems")]
         public async Task<JsonResult> GetLineItemsAsync(int count = 100000)
         {
-            var progress = new Progress<SqlWarehouseProgress>();
+            var progress = new Progress<StatementProgress>();
             progress.ProgressChanged += (sender, e) => Debug.WriteLine(e);
 
             var command = new SqlWarehouseCommand(connection, "SELECT l_orderkey, l_extendedprice, l_shipdate FROM lineitem");
@@ -116,14 +117,35 @@ namespace SampleWebApi.Controllers
         public async Task<JsonResult> GetDbricksResponseAsync(int count = 100000)
         {
             var command = new SqlWarehouseCommand(connection, "SELECT l_orderkey, l_extendedprice, l_shipdate FROM lineitem");
-            var content = command.BuildRequestContent(count);
-            var requestUri = connection.GetSqlStatementsPath();
-            var token = await connection.Authentication.GetTokenAsync();
-            var json = await command.ExecuteAsync(requestUri, HttpMethod.Post, token, content);
-
-            json.Result.DataArray = json.Result.DataArray.GetLength(0) > 10 ? json.Result.DataArray[0..1] : json.Result.DataArray;
+            var json = await command.ExecuteAsync(3);
             return new JsonResult(json);
         }
+
+
+        [HttpGet()]
+        [Route("Warehouses")]
+        public Task<List<Warehouse>> GetWarehousesAsync() => connection.GetSqlWarehousesAsync();
+
+        [HttpGet()]
+        [Route("Queries")]
+        public Task<Query> GetQueriesAsync() => connection.GetSqlWarehousesQueriesAsync();
+
+
+        [HttpGet()]
+        [Route("QueriesHistory")]
+        public Task<QueryHistory> GetQueriesHistoryAsync() => connection.GetSqlWarehousesQueriesHystoryAsync(includeMetrics:true);
+
+        [HttpGet()]
+        [Route("WarehousePermissions")]
+        public Task<WarehousePermissions> GetWarehousePermissionsAsync(string warehouseId) => connection.GetSqlWarehousePermissionsAsync(warehouseId);
+
+        [HttpGet()]
+        [Route("Schema")]
+        public async Task<Schema> GetSchemaAsync() => await connection.GetSchemaAsync();
+
+        [HttpGet()]
+        [Route("Table")]
+        public async Task<Table> GetTableAsync(string tableName) => await connection.GetTableAsync(tableName);
 
     }
 }
