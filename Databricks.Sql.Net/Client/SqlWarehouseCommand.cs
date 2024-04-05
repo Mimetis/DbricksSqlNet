@@ -1,4 +1,5 @@
 ﻿using Databricks.Sql.Net.Models;
+using Microsoft.Extensions.Options;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -265,22 +266,25 @@ namespace Databricks.Sql.Net.Client
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
 
-                Debug.WriteLine($"Waiting and {cpt} loop");
-
+                // wait 1s + 1s * cpt
                 await Task.Delay(1000 + (cpt * 1000), cancellationToken);
+
+                // get the uri to the statement result
                 var requestStatementUri = this.Connection.GetSqlStatementsResultPath(dbricksResponse.StatementId);
 
                 // Execute my OpenAsync in my policy context
                 dbricksResponse = await this.Connection.Policy.ExecuteAsync(
                     ct => this.SendAsync<SqlWarehouseResponse>(requestStatementUri, HttpMethod.Get, token, binaryData, ct), default, cancellationToken).ConfigureAwait(false);
 
+                // get status and increment counter to break the loop if needed
                 status = dbricksResponse.Status.State;
                 cpt++;
 
+                // send progress
                 SendProgress(progress, status, dbricksResponse.StatementId, dbricksResponse.Manifest?.TotalRowCount, dbricksResponse.Manifest?.TotalChunkCount, dbricksResponse.Result);
             }
 
-            if (cpt == 5 || status == "PENDING")
+            if (cpt >= 10 || status == "PENDING")
                 throw new WebException("Timeout", WebExceptionStatus.Timeout);
 
             if (status == "FAILED")

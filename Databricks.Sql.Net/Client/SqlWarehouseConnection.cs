@@ -29,10 +29,19 @@ namespace Databricks.Sql.Net.Client
         public Dictionary<string, string> QueryParameters = [];
 
 
+        /// <summary>
+        /// Gets the HttpClient used to make the requests
+        /// </summary>
         public HttpClient HttpClient { get; }
+
+        /// <summary>
+        /// Gets or Sets the policy to apply to the requests
+        /// </summary>
         public Policy Policy { get; set; }
 
-
+        /// <summary>
+        /// Gets the options used to configure the databricks connection
+        /// </summary>
         public SqlWarehouseOptions Options { get; }
 
         /// <summary>

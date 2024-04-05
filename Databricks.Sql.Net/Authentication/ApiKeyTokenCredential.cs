@@ -13,7 +13,7 @@ namespace Databricks.Sql.Net.Authentication
     /// <summary>
     /// Token Credential for ApiKey
     /// </summary>
-    public class ApiKeyTokenCredential(SqlWarehouseOptions options) : TokenCredential
+    public class ApiKeyTokenCredential(SqlWarehouseOptions options) : TokenCredential, IApiKeyTokenCredential
     {
         public string ApiKey { get; } = options.ApiKey;
 
