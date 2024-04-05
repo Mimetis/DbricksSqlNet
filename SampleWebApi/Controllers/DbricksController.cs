@@ -12,6 +12,7 @@ using Databricks.Sql.Net.Client;
 using Databricks.Sql.Net.Options;
 using System.Text.Json;
 using Databricks.Sql.Net.Models;
+using System.Net.Http;
 
 namespace SampleWebApi.Controllers
 {
@@ -101,15 +102,27 @@ namespace SampleWebApi.Controllers
         public async Task<JsonResult> GetLineItemsAsync(int count = 100000)
         {
             var progress = new Progress<SqlWarehouseProgress>();
-            progress.ProgressChanged += (sender, e) =>
-            {
-                Debug.WriteLine(e);
-            };
+            progress.ProgressChanged += (sender, e) => Debug.WriteLine(e);
 
-            var command = new SqlWarehouseCommand(connection, "SELECT * FROM lineitem");
-            var json = await command.LoadJsonArrayAsync(count, progress);
+            var command = new SqlWarehouseCommand(connection, "SELECT l_orderkey, l_extendedprice, l_shipdate FROM lineitem");
+            var json = await command.LoadJsonAsync(count, progress);
 
-            return new JsonResult(json.Count);
+            return new JsonResult(json);
+        }
+
+
+        [HttpGet()]
+        [Route("DbricksResponse")]
+        public async Task<JsonResult> GetDbricksResponseAsync(int count = 100000)
+        {
+            var command = new SqlWarehouseCommand(connection, "SELECT l_orderkey, l_extendedprice, l_shipdate FROM lineitem");
+            var content = command.BuildRequestContent(count);
+            var requestUri = connection.GetSqlStatementsPath();
+            var token = await connection.Authentication.GetTokenAsync();
+            var json = await command.ExecuteAsync(requestUri, HttpMethod.Post, token, content);
+
+            json.Result.DataArray = json.Result.DataArray.GetLength(0) > 10 ? json.Result.DataArray[0..1] : json.Result.DataArray;
+            return new JsonResult(json);
         }
 
     }

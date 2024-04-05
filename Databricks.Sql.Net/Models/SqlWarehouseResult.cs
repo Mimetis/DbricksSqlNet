@@ -15,13 +15,13 @@ namespace Databricks.Sql.Net.Models
         public int ChunkIndex { get; init; }
 
         [JsonPropertyName("next_chunk_index")]
-        public int NextChunkIndex { get; init; }
+        public int? NextChunkIndex { get; init; }
 
         [JsonPropertyName("next_chunk_internal_link")]
         public string NextChunkInternalLink { get; init; }
 
         [JsonPropertyName("data_array")]
-        public string[][] DataArray { get; init; }
+        public string[][] DataArray { get; set; }
 
         [JsonPropertyName("external_links")]
         public List<SqlWarehouseExternalLink> ExternalLinks { get; init; }

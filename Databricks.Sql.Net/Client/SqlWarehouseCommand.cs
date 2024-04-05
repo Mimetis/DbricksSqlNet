@@ -37,7 +37,7 @@ namespace Databricks.Sql.Net.Client
         /// <summary>
         /// Gets or Sets the command text to be executed.
         /// </summary>
-        public string Command { get; set; }
+        public string CommandText { get; set; }
 
         /// <summary>
         /// Gets or Sets the wait timeout in seconds.
@@ -50,9 +50,9 @@ namespace Databricks.Sql.Net.Client
 
         }
 
-        public SqlWarehouseCommand(SqlWarehouseConnection connetion, string command, int? waitTimeout = null)
+        public SqlWarehouseCommand(SqlWarehouseConnection connetion, string commandText, int? waitTimeout = null)
         {
-            this.Command = command;
+            this.CommandText = commandText;
             this.Connection = connetion;
             this.WaitTimeout = waitTimeout;
         }
@@ -74,7 +74,7 @@ namespace Databricks.Sql.Net.Client
         /// <summary>
         /// Load the result of the command into a JsonArray
         /// </summary>
-        public async Task<JsonArray> LoadJsonArrayAsync(int? limit = default, IProgress<SqlWarehouseProgress> progress = default, CancellationToken cancellationToken = default)
+        public async Task<JsonArray> LoadJsonAsync(int? limit = default, IProgress<SqlWarehouseProgress> progress = default, CancellationToken cancellationToken = default)
         {
 
             var list = new JsonArray();
@@ -83,34 +83,6 @@ namespace Databricks.Sql.Net.Client
                 list.Add(item);
 
             return list;
-        }
-
-        /// <summary>
-        /// Load the result of the command into a DataTable
-        /// </summary>
-        public async Task<DataTable> LoadDataTableAsync(int? limit = default, IProgress<SqlWarehouseProgress> progress = default, CancellationToken cancellationToken = default)
-        {
-            // Build a datatable with columns based on dbricksResponse.Manifest.Schema.Columns columns
-            var dt = new DataTable();
-
-            await foreach (var item in GetJsonObjectsAsync(limit, progress, cancellationToken))
-            {
-                if (item == null)
-                    break;
-
-                if (dt.Columns.Count <= 0)
-                    foreach (var keyValuePair in item)
-                        dt.Columns.Add(keyValuePair.Key, keyValuePair.Value.GetType());
-
-                var dr = dt.NewRow();
-                foreach (var keyValuePair in item)
-                    dr[keyValuePair.Key] = keyValuePair.Value;
-
-                dt.Rows.Add(dr);
-            }
-
-            return dt;
-
         }
 
         /// <summary>
@@ -128,7 +100,7 @@ namespace Databricks.Sql.Net.Client
                 throw new InvalidOperationException("Token is null or empty");
 
             // Build data to send
-            var binaryData = BuildContent(limit);
+            var binaryData = BuildRequestContent(limit);
 
             // Get the response from the server
             var dbricksResponse = await ExecuteAsync(requestUri, HttpMethod.Post, token, binaryData, progress, cancellationToken);
@@ -171,9 +143,10 @@ namespace Databricks.Sql.Net.Client
             // Get types from dbricksResponse.Manifest.Schema.Columns
             foreach (var column in dbricksResponse.Manifest.Schema.Columns)
             {
-                Type type = typeof(string);
+                var type = typeof(string);
+                var columTypeText = column.TypeText.IndexOf('(') > 0 ? column.TypeText[..column.TypeText.IndexOf('(')] : column.TypeText;
 
-                if (Enum.TryParse(column.TypeText, out SqlWarehouseType dbricksType))
+                if (Enum.TryParse(columTypeText, out SqlWarehouseType dbricksType))
                     type = GetTypeFromDbricksType(dbricksType);
 
                 columnsType.Add(column.Name, (Type: type, column.Position));
@@ -185,8 +158,11 @@ namespace Databricks.Sql.Net.Client
         /// <summary>
         /// Returns a list of JsonObjects from a data array
         /// </summary>
-        private static IEnumerable<JsonObject> GetJsonValues(string[][] dataArray, Dictionary<string, (Type Type, int Position)> columnsType)
+        internal static IEnumerable<JsonObject> GetJsonValues(string[][] dataArray, Dictionary<string, (Type Type, int Position)> columnsType)
         {
+            if (dataArray == null || dataArray.Length <= 0)
+                yield break;
+
             foreach (var row in dataArray)
             {
                 var jsonRow = new JsonObject();
@@ -195,7 +171,6 @@ namespace Databricks.Sql.Net.Client
                     var value = TypeConverter.TryConvertTo(row[column.Value.Position], column.Value.Type);
                     jsonRow[column.Key] = JsonValue.Create(value);
                 }
-
                 yield return jsonRow;
             }
         }
@@ -206,37 +181,23 @@ namespace Databricks.Sql.Net.Client
         private static Type GetTypeFromDbricksType(SqlWarehouseType dbricksType)
         {
             // return dotnet type from enumeration DbricksType
-            switch (dbricksType)
+            return dbricksType switch
             {
-                case SqlWarehouseType.BIGINT:
-                    return typeof(Int64);
-                case SqlWarehouseType.VOID:
-                    return typeof(DBNull);
-                case SqlWarehouseType.STRING:
-                    return typeof(String);
-                case SqlWarehouseType.DATE:
-                    return typeof(DateOnly);
-                case SqlWarehouseType.TIMESTAMP:
-                    return typeof(DateTime);
-                case SqlWarehouseType.FLOAT:
-                    return typeof(float);
-                case SqlWarehouseType.DECIMAL:
-                    return typeof(decimal);
-                case SqlWarehouseType.DOUBLE:
-                    return typeof(double);
-                case SqlWarehouseType.INTEGER:
-                    return typeof(int);
-                case SqlWarehouseType.BINARY:
-                    return typeof(byte[]);
-                case SqlWarehouseType.SMALLINT:
-                    return typeof(Int16);
-                case SqlWarehouseType.TINYINT:
-                    return typeof(byte);
-                case SqlWarehouseType.BOOLEAN:
-                    return typeof(bool);
-                default:
-                    return typeof(string);
-            }
+                SqlWarehouseType.BIGINT => typeof(long),
+                SqlWarehouseType.VOID => typeof(DBNull),
+                SqlWarehouseType.STRING => typeof(string),
+                SqlWarehouseType.DATE => typeof(DateOnly),
+                SqlWarehouseType.TIMESTAMP or SqlWarehouseType.TIMESTAMP_NTZ => typeof(DateTime),
+                SqlWarehouseType.FLOAT => typeof(float),
+                SqlWarehouseType.DECIMAL => typeof(decimal),
+                SqlWarehouseType.DOUBLE => typeof(double),
+                SqlWarehouseType.INTEGER or SqlWarehouseType.INT => typeof(int),
+                SqlWarehouseType.BINARY => typeof(byte[]),
+                SqlWarehouseType.SMALLINT => typeof(short),
+                SqlWarehouseType.TINYINT => typeof(byte),
+                SqlWarehouseType.BOOLEAN => typeof(bool),
+                _ => typeof(string),
+            };
         }
 
 
@@ -244,7 +205,7 @@ namespace Databricks.Sql.Net.Client
         /// Execute the command and return the result as a SqlWarehouseResponse instance
         /// IF needed (status == PENDING), execute the command multiple times to get the data
         /// </summary>
-        private async Task<SqlWarehouseResponse> ExecuteAsync(Uri requestUri, HttpMethod method, string token, byte[] binaryData = default, IProgress<SqlWarehouseProgress> progress = default, CancellationToken cancellationToken = default)
+        public async Task<SqlWarehouseResponse> ExecuteAsync(Uri requestUri, HttpMethod method, string token, byte[] binaryData = default, IProgress<SqlWarehouseProgress> progress = default, CancellationToken cancellationToken = default)
         {
 
             var dbricksResponse = await this.Connection.Policy.ExecuteAsync(
@@ -261,7 +222,7 @@ namespace Databricks.Sql.Net.Client
             SendProgress(progress, status, dbricksResponse.StatementId, dbricksResponse.Manifest?.TotalRowCount, dbricksResponse.Manifest?.TotalChunkCount, dbricksResponse.Result);
 
             int cpt = 0;
-            while (status == "PENDING" && cpt < 10)
+            while (status == "PENDING" || status == "RUNNING" && cpt < 10)
             {
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
@@ -284,7 +245,7 @@ namespace Databricks.Sql.Net.Client
                 SendProgress(progress, status, dbricksResponse.StatementId, dbricksResponse.Manifest?.TotalRowCount, dbricksResponse.Manifest?.TotalChunkCount, dbricksResponse.Result);
             }
 
-            if (cpt >= 10 || status == "PENDING")
+            if (cpt >= 10 || status == "PENDING" || status == "RUNNING")
                 throw new WebException("Timeout", WebExceptionStatus.Timeout);
 
             if (status == "FAILED")
@@ -293,7 +254,7 @@ namespace Databricks.Sql.Net.Client
             return dbricksResponse;
         }
 
-        private async Task<T> SendAsync<T>(Uri requestUri, HttpMethod method, string token, byte[] binaryData = default, CancellationToken cancellationToken = default)
+        internal async Task<T> SendAsync<T>(Uri requestUri, HttpMethod method, string token, byte[] binaryData = default, CancellationToken cancellationToken = default)
         {
             // Create the request message
             var requestMessage = new HttpRequestMessage(method, requestUri);
@@ -337,8 +298,7 @@ namespace Databricks.Sql.Net.Client
             return res;
         }
 
-
-        private static void SendProgress(IProgress<SqlWarehouseProgress> progress, string status, string statementId, int? totalRowCount, int? totalChunkCount, SqlWarehouseResult result )
+        private static void SendProgress(IProgress<SqlWarehouseProgress> progress, string status, string statementId, int? totalRowCount, int? totalChunkCount, SqlWarehouseResult result)
         {
             progress?.Report(new SqlWarehouseProgress
             {
@@ -355,7 +315,7 @@ namespace Databricks.Sql.Net.Client
             });
         }
 
-        private byte[] BuildContent(int? limit)
+        public byte[] BuildRequestContent(int? limit)
         {
 
             var databricksQueryContent = new
@@ -367,7 +327,7 @@ namespace Databricks.Sql.Net.Client
                 format = "JSON_ARRAY",
                 disposition = "INLINE",
                 wait_timeout = this.WaitTimeout.HasValue ? $"{this.WaitTimeout.Value}s" : $"{this.Connection.Options.WaitTimeout}s",
-                statement = this.Command,
+                statement = this.CommandText,
                 parameters = this.Parameters == null || this.Parameters.Count <= 0 ? [] : this.Parameters.Select(p => new
                 {
                     name = p.ParameterName,
