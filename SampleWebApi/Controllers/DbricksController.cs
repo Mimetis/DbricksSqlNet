@@ -114,7 +114,7 @@ namespace SampleWebApi.Controllers
 
         [HttpGet()]
         [Route("DbricksResponse")]
-        public async Task<JsonResult> GetDbricksResponseAsync(int count = 100000)
+        public async Task<JsonResult> GetDbricksResponseAsync(int count = 3)
         {
             var command = new SqlWarehouseCommand(connection, "SELECT l_orderkey, l_extendedprice, l_shipdate FROM lineitem");
             var json = await command.ExecuteAsync(3);
