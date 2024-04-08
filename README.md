@@ -145,7 +145,7 @@ var table = await connection.GetTableAsync("table-name");
     "Last Access": "UNKNOWN",
     "Created By": "Spark ",
     "Type": "EXTERNAL",
-    "Location": "dbfs:/databricks-datasets/tpch/delta-001/customer",
+    "Location": "dbfs:/xxxxxxxxx/customer",
     "Provider": "delta",
     "Table Properties": "[delta.checkpoint.writeStatsAsJson=false,delta.checkpoint.writeStatsAsStruct=true,delta.minReaderVersion=1,delta.minWriterVersion=2]"
   }
@@ -241,7 +241,7 @@ var queries = await connection.GetSqlWarehousesQueriesHystoryAsync();
   "hasNextPage": true,
   "res": [
     {
-      "queryId": "01eef520-d7f4-1e77-9594-74eeed3cd306",
+      "queryId": "xxxxxx-xxxx-xxxx-xxxxxx",
       "status": "FINISHED",
       "queryText": "SELECT *  FROM samples.tpch.customer",
       "queryStartTimeMs": 1712523190605,
@@ -322,12 +322,12 @@ The `SqlWarehouseCommand` class is used to execute SQL queries on the Databricks
 
 Each method getting results from the Databricks SQL Warehouse allows you to specify the maximum number of rows to return.
 
-Your main entry points are the `LoadJsonAsync` and `LoadJson<T>` methods, which returns a either a JSON array or a list of objects of type `T`.
+Your main entry points are the `LoadJsonAsync` and `LoadJson<T>` methods, which returns either a JSON array or a list of objects of type `T`.
 
 The two others methods, `GetJsonObjectsAsync` and `ExecuteAsync` are used internally by the two main methods.
 
-- `GetJsonObjectsAsync`: A special asynchronous method is available to execute a SQL query and return an IAsyncEnumerable<JsonObject>. This method is used by all the other methods internally.
-- `ExecuteAsync` : Execute a SQL query and return the result as a `DbricksResult` object. This method is using `GetJsonObjectsAsync` is used internally by the other methods `LoadJsonAsync` and `LoadJson<T>`.
+- `GetJsonObjectsAsync`: A special asynchronous method is available to execute a SQL query and return an `IAsyncEnumerable<JsonObject>`. This method is used by all the other methods internally.
+- `ExecuteAsync` : Execute a SQL query and return the result as a `DbricksResult` object. This method is using `GetJsonObjectsAsync` and is internally used by `LoadJsonAsync` and `LoadJson<T>`.
 - `LoadJsonAsync` : Execute a SQL Query and return the result as a `JsonArray` object.
 - `LoadJson<T>` : Execute a SQL Query and return the result as a list of objects of type `T`.
 
@@ -463,7 +463,8 @@ var json = await command.LoadJsonAsync(count, progress);
 ## Authentication
 
 
-Authentication is done using a Databricks token or Azure Identity.
+Authentication is done using a **Databricks token** or using the **Azure Identity** provider.
+
 
 You can retrieve the current token using the `GetTokenAsync` method.
 
@@ -471,12 +472,31 @@ You can retrieve the current token using the `GetTokenAsync` method.
 var token = await connection.GetTokenAsync();
 ```
 
+### Using a Databricks token
+
+Just configure your API Key from your `SqlWarehouseConnectionOptions` instance, or use the confiuration section:
+
+``` json
+{
+  "Databricks": {
+    "Host": "https://<databricks-instance>.azuredatabricks.net",
+    "ApiKey": "<databricks-token>",
+    "WarehouseId": "<warehouse-id>",
+    "Catalog": "samples",
+    "Schema": "tpch",
+    "WaitTimeout":10,
+    "TenantId": "<tenant-id>"
+  }
+}
+```
+
+
 ### Using Azure Identity
 
-You can use Azure Identity to authenticate with the Databricks SQL Warehouse.
+You can use Azure Identity to authenticate your connection with the Databricks SQL Warehouse.
 
-Internally, the library uses the `DefaultAzureCredential` class to authenticate with the Databricks SQL Warehouse.
-If you want to use a managed identity, you can set the `ManagedIdentityClientId` value in your options
+Internally, the library uses the `DefaultAzureCredential` class from the `Azure.Identity` framework to authenticate your connection with the Databricks SQL Warehouse.
+If you want to use a managed identity, you can set the `ManagedIdentityClientId` value in your options :
 
 ``` json
 {
@@ -492,19 +512,20 @@ You can also use the `DefaultAzureCredentialOptions` class to specify the option
 
 ``` csharp
 var azureAuthOptions = new DefaultAzureCredentialOptions
-            {
-                ExcludeInteractiveBrowserCredential = false,
-                ManagedIdentityClientId = options.ManagedIdentityClientId,
-                TenantId = options.TenantId,
-            };
+    {
+        ExcludeInteractiveBrowserCredential = false,
+        ManagedIdentityClientId = options.ManagedIdentityClientId,
+        TenantId = options.TenantId,
+    };
 
 var connection = new SqlWarehouseConnection(options, azureAuthOptions);
 ```
 
 ### Using a custom authentication method, with TokenCredential
 
-If you want to use your own `TokenCredential` to authenticate, you can create your own authentication class, inhereting from TokenCredential, and use it from your `SqlWarehouseConnection`:
+If you want to use your own `TokenCredential` to authenticate, you can create your own authentication class, inhereting from `TokenCredential`, and use it from your `SqlWarehouseConnection`:
 
+Useful if you want to use your own authentication logic:
 
 ``` csharp
 public class MyTokenCredential : TokenCredential
