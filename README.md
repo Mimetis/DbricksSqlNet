@@ -474,7 +474,7 @@ var token = await connection.GetTokenAsync();
 
 ### Using a Databricks token
 
-Just configure your API Key from your `SqlWarehouseConnectionOptions` instance, or use the confiuration section:
+Just configure your API Key from your `SqlWarehouseConnectionOptions` instance, or use the configuration section:
 
 ``` json
 {
@@ -493,7 +493,9 @@ Just configure your API Key from your `SqlWarehouseConnectionOptions` instance, 
 
 ### Using Azure Identity
 
-You can use Azure Identity to authenticate your connection with the Databricks SQL Warehouse.
+
+
+You can use [Azure Identity](https://learn.microsoft.com/en-us/dotnet/api/overview/azure/identity-readme?view=azure-dotnet) to authenticate your connection with the Databricks SQL Warehouse.
 
 Internally, the library uses the `DefaultAzureCredential` class from the `Azure.Identity` framework to authenticate your connection with the Databricks SQL Warehouse.
 If you want to use a managed identity, you can set the `ManagedIdentityClientId` value in your options :
